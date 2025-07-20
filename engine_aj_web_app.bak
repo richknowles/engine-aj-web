@@ -1,0 +1,24 @@
+# engine_aj_web_app.py
+
+from flask import Flask, request, jsonify
+import subprocess
+import os
+
+app = Flask(__name__)
+
+@app.route('/')
+def index():
+    return "ENGINE-AJ is Live"
+
+@app.route('/run-demo', methods=['POST'])
+def run_demo():
+    try:
+        # You can directly import and call logic here instead of subprocessing
+        from engine_aj_web_3.0_demo import main  # assuming your file has a main()
+        output = main()
+        return jsonify({"status": "success", "output": output})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)

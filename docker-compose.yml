@@ -1,0 +1,16 @@
+services:
+  engineaj:
+    build: .
+    container_name: engine-aj-web-engineaj-1
+    ports:
+      - "5000:5000"
+      - "6080:6080"
+    volumes:
+      - .:/app
+    networks:
+      - engineajnet
+    restart: unless-stopped
+
+networks:
+  engineajnet:
+    driver: bridge

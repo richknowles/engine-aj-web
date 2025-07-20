@@ -1,0 +1,65 @@
+################### BUILD STAGE ###################
+FROM python:3.11-slim-bookworm AS builder
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# System deps
+RUN apt-get update && apt-get install -y \
+     build-essential libegl1-mesa libegl1-mesa-dev unzip wget firefox-esr dbus-x11 xvfb \
+  && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Install geckodriver
+RUN wget -qO /tmp/geckodriver.tar.gz \
+    "https://github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-linux64.tar.gz" \
+  && tar -xzf /tmp/geckodriver.tar.gz \
+  && mv geckodriver /usr/local/bin/ \
+  && chmod +x /usr/local/bin/geckodriver
+
+# Install requirements
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt \
+ && apt-get purge -y build-essential gcc \
+ && apt-get autoremove -y \
+ && rm -rf /var/lib/apt/lists/*
+
+################### RUNTIME STAGE ###################
+FROM python:3.11-slim-bookworm
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV QT_QPA_PLATFORM=offscreen
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    nginx dbus-x11 xvfb firefox-esr \
+    libegl1-mesa libegl1-mesa-dev \
+    libwebp7 libwebpdemux2 libwebp-dev \
+    libxcb-cursor0 libxcb-util1 libxcb-image0 \
+    libxcb-render-util0 libxcb-icccm4 libxcb-keysyms1 \
+    libxkbcommon-x11-0 libxcb-xinerama0 \
+  && ln -sf \
+    /usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/libwebp.so.7 \
+    /usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/libwebp.so.6 \
+  && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Python deps
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy geckodriver from build stage
+COPY --from=builder /usr/local/bin/geckodriver /usr/local/bin/geckodriver
+
+# Copy Nginx config
+COPY nginx-app.conf /etc/nginx/sites-enabled/default
+
+# Copy app source
+COPY . /app
+
+# Entrypoint
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+ENTRYPOINT ["docker-entrypoint.sh"]
+
+# Expose port for Cloudflare Tunnel
+EXPOSE 5000
