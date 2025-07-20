@@ -342,6 +342,7 @@ if __name__ == "__main__":
     import multiprocessing
     from flask import Flask
     from threading import Thread
+    import subprocess
 
     # Flask app to show "we're alive" on port 5000
     flask_app = Flask(__name__)
@@ -356,6 +357,12 @@ if __name__ == "__main__":
 
     def run_flask():
         flask_app.run(host="0.0.0.0", port=5000)
+    def run_novnc():
+        subprocess.run([
+            "/root/noVNC/utils/novnc_proxy",
+            "--vnc", "localhost:5901",
+            "--listen", "6080"
+        ])
 
     def run_qt():
         qt_app = QApplication(sys.argv)
@@ -365,4 +372,5 @@ if __name__ == "__main__":
         sys.exit(qt_app.exec())
 
     Thread(target=run_flask, daemon=True).start()
+    Thread(target=run_novnc, daemon=True).start()
     run_qt()
